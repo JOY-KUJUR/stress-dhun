@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Stress Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body class="bg-slate-100 text-slate-800">
+
+<div class="max-w-7xl mx-auto p-4">
+
+<!-- HEADER -->
+<div class="mb-4">
+  <h1 class="text-2xl font-semibold">🧠 AI Stress Analyzer</h1>
+  <p class="text-sm text-slate-500">Hourly behavior → stress intelligence</p>
+</div>
+
+<!-- MAIN CARD -->
+<div class="bg-white rounded-xl border shadow-sm p-4">
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+<!-- HOURS GRID -->
+<div class="rounded-lg border p-3">
+<h2 class="font-medium mb-2">Daily Hours</h2>
+<div id="grid" class="grid grid-cols-6 gap-2"></div>
+</div>
+
+<!-- RIGHT SIDE -->
+<div class="md:col-span-2 flex flex-col gap-4">
+
+<!-- ACTIVITY SELECT -->
+<div class="flex flex-wrap gap-2">
+<button onclick="setAct('rest')" class="px-3 py-1 rounded-md bg-emerald-500 text-white">Rest</button>
+<button onclick="setAct('study')" class="px-3 py-1 rounded-md bg-rose-500 text-white">Study</button>
+<button onclick="setAct('game')" class="px-3 py-1 rounded-md bg-indigo-500 text-white">Game</button>
+<button onclick="setAct('other')" class="px-3 py-1 rounded-md bg-amber-400">Other</button>
+</div>
+
+<!-- AI CARD -->
+<div class="rounded-lg border p-4 bg-slate-50">
+<p class="text-sm text-slate-500">Stress Score</p>
+<p id="score" class="text-3xl font-semibold">0</p>
+<p id="level" class="mt-1 text-sm"></p>
+<p id="aiText" class="mt-2 text-sm text-slate-600"></p>
+
+<button onclick="saveDay()" class="mt-3 px-4 py-1.5 rounded-md bg-slate-900 text-white">
+Save Today
+</button>
+</div>
+
+<!-- GRAPH -->
+<div class="rounded-lg border p-3 bg-white">
+<canvas id="chart"></canvas>
+</div>
+
+</div>
+</div>
+</div>
+</div>
+
+<script>
+let current="rest";
+let hours=Array(24).fill("rest");
+
+const color={
+ rest:"bg-emerald-400",
+ study:"bg-rose-400",
+ game:"bg-indigo-400",
+ other:"bg-amber-300"
+};
+
+const grid=document.getElementById("grid");
+for(let i=0;i<24;i++){
+ let d=document.createElement("div");
+ d.innerText=i+1;
+ d.className="h-9 rounded-md flex items-center justify-center text-sm cursor-pointer bg-emerald-400";
+ d.onclick=()=>select(i,d);
+ grid.appendChild(d);
+}
+
+function setAct(a){current=a;}
+
+function select(i,el){
+ hours[i]=current;
+ el.className=`h-9 rounded-md flex items-center justify-center text-sm cursor-pointer ${color[current]}`;
+ calculate();
+}
+
+function calculate(){
+ let stress=0;
+ let trend=[];
+ let count={rest:0,study:0,game:0,other:0};
+
+ hours.forEach(h=>{
+  count[h]++;
+  if(h==="study")stress+=7;
+  if(h==="game")stress+=3;
+  if(h==="other")stress+=4;
+  if(h==="rest")stress-=6;
+  stress=Math.max(0,stress);
+  trend.push(stress);
+ });
+
+ stress=Math.min(100,stress);
+ document.getElementById("score").innerText=stress;
+
+ let level="Balanced";
+ if(stress<30)level="Low Stress 😌";
+ else if(stress<60)level="Moderate Stress 😐";
+ else level="High Stress 😖";
+ document.getElementById("level").innerText=level;
+
+ // 🤖 AI RECOMMENDATION
+ let ai="Good routine. Maintain consistency.";
+ if(count.rest>count.study+2)
+   ai="You have more rest hours. Convert 1–2 hrs into focused study.";
+ else if(count.study>count.rest+3)
+   ai="Too much study. Burnout risk. Add rest or light gaming.";
+ else if(count.game>5)
+   ai="Gaming is high. Reduce gaming and improve productivity.";
+ else if(stress>60)
+   ai="High stress detected. Reduce workload and sleep more.";
+
+ document.getElementById("aiText").innerText=ai;
+
+ chart.data.datasets[0].data=trend;
+ chart.update();
+
+ window.currentSummary=ai;
+ window.currentStress=stress;
+}
+
+async function saveDay(){
+ await fetch("/save",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({
+    hours,
+    stress:window.currentStress,
+    summary:window.currentSummary
+  })
+ });
+ alert("Saved successfully!");
+}
+
+// CHART
+const ctx=document.getElementById("chart");
+const chart=new Chart(ctx,{
+ type:"line",
+ data:{
+  labels:[...Array(24).keys()].map(i=>i+1),
+  datasets:[{
+    label:"Stress Progression",
+    data:Array(24).fill(0),
+    borderWidth:2,
+    tension:0.4
+  }]
+ },
+ options:{
+  responsive:true,
+  scales:{y:{min:0,max:100}}
+ }
+});
+</script>
+
+</body>
+</html>
